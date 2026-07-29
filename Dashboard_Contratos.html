@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard de Gestão de Contratos</title>
+<link rel="stylesheet" href="assets/theme.css">
+</head>
+<body>
+
+<div id="app">
+  <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo-dot"></div>
+      <div><span>Contratos</span><small>Gestão de Contratos</small></div>
+    </div>
+    <ul class="nav">
+      <li><button data-page="executiva" class="active"><span class="ic">📊</span> Executiva</button></li>
+      <li><button data-page="sla"><span class="ic">⏱️</span> SLA Operacional</button></li>
+      <li><button data-page="financeira"><span class="ic">💰</span> Financeira</button></li>
+      <li><button data-page="gestao"><span class="ic">📁</span> Gestão de Contratos</button></li>
+    </ul>
+    <div class="sidebar-actions">
+      <div class="file-name">
+        <span class="status-dot off" id="file-status-dot"></span>
+        <span id="file-status-name">Nenhuma planilha aberta</span>
+      </div>
+      <button class="btn live-only" id="btn-open">📂 Abrir planilha</button>
+      <button class="btn btn-primary live-only" id="btn-save" disabled>💾 Salvar</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="hamburger" id="btn-hamburger">☰</button>
+        <div>
+          <h1 id="topbar-title">Visão Executiva</h1>
+          <div class="subtitle" id="topbar-subtitle">KPIs consolidados e alertas</div>
+        </div>
+      </div>
+      <div class="actions">
+        <span class="warn-banner live-only" style="margin:0;">⚠ Feche o Power BI antes de editar a planilha</span>
+      </div>
+    </div>
+
+    <div id="unsupported-banner" class="warn-banner danger hidden" style="margin:16px 28px 0;">
+      Este navegador não é compatível com a edição direta da planilha (File System Access API). Use Microsoft Edge ou Google Chrome para abrir, cadastrar e salvar contratos.
+    </div>
+    <div id="snapshot-info" class="warn-banner hidden" style="margin:16px 28px 0;"></div>
+
+    <section class="page active" id="page-executiva"></section>
+    <section class="page" id="page-sla"></section>
+    <section class="page" id="page-financeira"></section>
+    <section class="page" id="page-gestao"></section>
+  </div>
+</div>
+
+<div class="modal-overlay hidden" id="modal-overlay"><div id="modal-root"></div></div>
+<div class="toast" id="toast"></div>
+
+<script src="assets/chart.umd.min.js"></script>
+<script src="assets/chartjs-plugin-datalabels.min.js"></script>
+<script src="assets/xlsx.full.min.js"></script>
+<script src="assets/snapshot-template.js"></script>
+<script src="assets/regras.js"></script>
+<script src="assets/excel.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
