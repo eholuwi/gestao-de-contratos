@@ -1,0 +1,31 @@
+# Artefatos gerados em runtime pelo próprio app (o botão "Salvar" recria)
+*.backup.xlsx
+Dashboard_Contratos_snapshot.html
+
+# Documentação interna de desenvolvimento (não publicada)
+Claude/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+env/
+
+# Editores / IDEs
+.vscode/
+.idea/
+
+# Logs e temporários
+*.log
+*.tmp
+*.bak
+
+# Node (caso ferramentas auxiliares venham a usar npm no futuro)
+node_modules/
+dist/
+build/
+
+# Sistema operacional
+Thumbs.db
+Desktop.ini
+.DS_Store
