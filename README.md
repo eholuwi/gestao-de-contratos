@@ -144,7 +144,7 @@ html/
 Não há instalação nem dependências para baixar. Clone o repositório:
 
 ```bash
-git clone https://github.com/eholuwi/gest-o-de-contratos.git
+git clone https://github.com/eholuwi/gestao-de-contratos.git
 cd gest-o-de-contratos
 ```
 
@@ -301,4 +301,4 @@ Distribuído sob a licença [MIT](LICENSE).
 
 ## Contato
 
-Dúvidas, sugestões ou bugs: abra uma [issue](https://github.com/eholuwi/gest-o-de-contratos/issues).
+Dúvidas, sugestões ou bugs: abra uma [issue](https://github.com/eholuwi/gestao-de-contratos/issues).
