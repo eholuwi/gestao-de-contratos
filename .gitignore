@@ -2,6 +2,12 @@
 *.backup.xlsx
 Dashboard_Contratos_snapshot.html
 
+# Dado real de fornecedor NUNCA entra neste repositório público.
+# A base de produção não é versionada em lugar nenhum; o único .xlsx
+# versionado é o exemplo fictício da demo (a exceção do fim).
+*.xlsx
+!dados/exemplo_simulado.xlsx
+
 # Documentação interna de desenvolvimento (não publicada)
 Claude/
 
@@ -24,6 +30,9 @@ env/
 node_modules/
 dist/
 build/
+
+# Electron desktop: cópia sincronizada do app web (gerada por sync-app.mjs)
+desktop/app/
 
 # Sistema operacional
 Thumbs.db
