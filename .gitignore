@@ -11,6 +11,12 @@ Dashboard_Contratos_snapshot.html
 # Documentação interna de desenvolvimento (não publicada)
 Claude/
 
+# Protótipos de design e imagens de doc (ficam no disco, não no repo)
+docs/prototipo_home.html
+docs/abrir_mock.html
+docs/Image (3).jpg
+docs/Image (4).jpg
+
 # Python
 __pycache__/
 *.pyc

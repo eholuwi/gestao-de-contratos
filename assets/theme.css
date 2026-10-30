@@ -10,6 +10,7 @@
   --a-vencer:#FF851B;
   --vencido:#DC2626;
   --em-analise:#7a7f87;
+  --distrato:#6D28D9;
 
   --text:#2B2B2B;
   --muted:#7a7f87;
@@ -67,8 +68,14 @@ button{font-family:inherit;}
   width:10px;height:10px;border-radius:50%;background:var(--primary);
   box-shadow:0 0 0 4px rgba(245,130,32,.25);
 }
+.sidebar .brand .brand-text{flex:1;min-width:0;}
 .sidebar .brand span{font-weight:700;font-size:15px;letter-spacing:.2px;}
 .sidebar .brand small{display:block;font-weight:400;font-size:11px;color:#9AA0A6;}
+.collapse-toggle{
+  background:rgba(255,255,255,.08);border:none;color:#C9CCD1;cursor:pointer;
+  width:22px;height:22px;border-radius:6px;font-size:12px;line-height:1;flex:0 0 auto;
+}
+.collapse-toggle:hover{background:rgba(255,255,255,.16);color:#fff;}
 
 .nav{list-style:none;margin:0;padding:10px;flex:1;}
 .nav li{margin-bottom:2px;}
@@ -90,6 +97,27 @@ button{font-family:inherit;}
 .sidebar-actions .status-dot.on{background:var(--no-prazo);}
 .sidebar-actions .status-dot.dirty{background:var(--a-vencer);}
 
+/* Sidebar recolhida: só os ícones. Os rótulos somem, o resto do layout
+   se estica sozinho porque a largura vem de --sidebar-w no .sidebar. */
+#app.sidebar-collapsed .sidebar{width:64px;flex:0 0 64px;}
+#app.sidebar-collapsed .brand-text,
+#app.sidebar-collapsed .sidebar .lbl,
+#app.sidebar-collapsed .sidebar-actions .file-name span:last-child{display:none;}
+#app.sidebar-collapsed .brand{padding:16px 0 12px;flex-direction:column;align-items:center;gap:10px;}
+#app.sidebar-collapsed .nav button,
+#app.sidebar-collapsed .sidebar-actions .btn{justify-content:center;padding-left:0;padding-right:0;}
+#app.sidebar-collapsed .sidebar-actions .file-name{text-align:center;padding:0 0 4px;}
+
+/* Tela cheia: a página ocupa a janela inteira, sem sidebar nem topbar. */
+.fullscreen-exit{
+  display:none;position:fixed;top:12px;right:16px;z-index:30;
+  background:var(--card-bg);border:1px solid var(--border);border-radius:8px;
+  padding:7px 12px;font-size:12px;cursor:pointer;box-shadow:var(--shadow-md);color:var(--text);
+}
+#app.fullscreen .sidebar,
+#app.fullscreen .topbar{display:none;}
+#app.fullscreen .fullscreen-exit{display:block;}
+
 .main{flex:1;min-width:0;display:flex;flex-direction:column;}
 
 .topbar{
@@ -102,6 +130,27 @@ button{font-family:inherit;}
 .topbar h1{font-size:22px;}
 .topbar .subtitle{color:var(--muted);font-size:12.5px;}
 .topbar .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+/* Seletor de exercício: estado ÚNICO de ano do app — um na barra superior e
+   um no topo de cada página, todos ligados ao mesmo ANO_ATIVO. */
+.ano-picker{
+  display:flex;align-items:center;gap:6px;
+  font-size:12px;color:var(--muted);white-space:nowrap;
+}
+.ano-picker select,
+select.ano-select{
+  border:1px solid var(--border);border-radius:8px;padding:7px 9px;font-size:13px;
+  background:#fff;color:var(--text);font-weight:600;cursor:pointer;
+}
+
+/* Barra de exercício no topo de cada página: mesmo estado, com a frase que
+   deixa explícito de que ano são os números que estão abaixo. */
+.ano-bar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:var(--card-bg);border:1px solid var(--border);border-left:3px solid var(--primary);
+  border-radius:var(--radius);padding:10px 14px;margin-bottom:18px;
+}
+.ano-bar-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;font-weight:600;}
+.ano-bar-nota{font-size:12px;color:var(--muted);}
 
 .page{padding:24px 28px 60px;display:none;}
 .page.active{display:block;}
@@ -151,6 +200,7 @@ button{font-family:inherit;}
 .kpi-card.accent-a-vencer .kpi-value{color:var(--a-vencer);}
 .kpi-card.accent-vencido .kpi-value{color:var(--vencido);}
 .kpi-card.accent-em-analise .kpi-value{color:var(--em-analise);}
+.kpi-card.accent-distrato .kpi-value{color:var(--distrato);}
 
 /* ============ GRID / CARDS ============ */
 .grid{display:grid;gap:18px;}
@@ -167,6 +217,7 @@ button{font-family:inherit;}
 .card .card-sub{font-size:11.5px;color:var(--muted);margin-bottom:14px;}
 .chart-wrap{position:relative;height:280px;}
 .chart-wrap.sm{height:220px;}
+.chart-wrap.lg{height:360px;}
 
 /* ============ FILTER BAR ============ */
 .filter-bar{
@@ -198,9 +249,24 @@ table.data-table tbody tr:nth-child(even){background:#FAFAFA;}
 table.data-table tbody tr:hover{background:#FFF3E8;}
 table.data-table tbody tr.row-clickable{cursor:pointer;}
 .table-scroll{max-height:560px;overflow:auto;}
+/* Tabela espelho da planilha (37 colunas): rola na horizontal com a Razão
+   Social presa à esquerda, para não perder a referência da linha. */
+table.data-table.table-wide{min-width:max-content;}
+table.data-table.table-wide tbody td{white-space:nowrap;}
+table.data-table.table-wide thead th:first-child,
+table.data-table.table-wide tbody td:first-child{
+  position:sticky;left:0;z-index:2;background:var(--card-bg);
+  box-shadow:1px 0 0 var(--border);
+}
+table.data-table.table-wide thead th:first-child{z-index:3;}
+table.data-table.table-wide tbody tr:nth-child(even) td:first-child{background:#FAFAFA;}
+table.data-table.table-wide tbody tr:hover td:first-child{background:#FFF3E8;}
 .td-actions{white-space:nowrap;display:flex;gap:4px;}
 .cell-muted{color:var(--muted);font-style:italic;}
 .cell-num{text-align:right;font-variant-numeric:tabular-nums;}
+table.data-table thead th.th-num{text-align:right;}
+.bids-tfoot td{background:rgba(22,163,74,.14);color:#14532D;font-weight:700;border-top:2px solid var(--no-prazo);}
+.bids-tfoot td.cell-num{font-variant-numeric:tabular-nums;}
 
 /* ============ BADGES ============ */
 .badge{
@@ -212,6 +278,7 @@ table.data-table tbody tr.row-clickable{cursor:pointer;}
 .badge-a-vencer{background:rgba(255,133,27,.14);color:var(--a-vencer);}
 .badge-vencido{background:rgba(220,38,38,.12);color:var(--vencido);}
 .badge-em-analise{background:rgba(122,127,135,.14);color:var(--em-analise);}
+.badge-distrato{background:rgba(109,40,217,.12);color:var(--distrato);}
 .badge-flag{background:rgba(245,130,32,.12);color:var(--primary-dark);}
 
 /* ============ MODAL ============ */
@@ -252,6 +319,13 @@ table.data-table tbody tr.row-clickable{cursor:pointer;}
 .field.invalid input, .field.invalid select{border-color:var(--vencido);}
 .field.invalid .field-error{display:block;}
 .field-hint{font-size:11px;color:var(--muted);margin-top:4px;}
+.field input.auto-computed{background:#f4f4f5;color:var(--muted);}
+
+.meses-details summary{cursor:pointer;font-size:12.5px;color:var(--primary);font-weight:600;}
+.meses-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px;}
+.meses-grid .field label{font-size:11px;}
+.mes-usd{font-size:10.5px;color:var(--muted);margin-top:3px;text-align:right;}
+@media (max-width:560px){.meses-grid{grid-template-columns:repeat(2,1fr);}}
 
 /* ============ TOAST ============ */
 .toast{
@@ -263,14 +337,19 @@ table.data-table tbody tr.row-clickable{cursor:pointer;}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 .toast.error{background:#8A1F1F;}
 
-/* ============ ALERT LIST ============ */
-.alert-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
-.alert-list li{
-  display:flex;justify-content:space-between;gap:10px;padding:9px 12px;
-  border-radius:8px;background:#FAFAFA;border:1px solid var(--border);font-size:12.5px;
+/* ============ COTAÇÕES POR MÊS (Financeira) ============ */
+.cotacoes-bar{
+  background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);
+  padding:12px 16px;margin-bottom:18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
 }
-.alert-list li b{font-weight:600;}
-.alert-list .alert-tag{font-size:10.5px;color:#fff;background:var(--vencido);padding:2px 7px;border-radius:6px;white-space:nowrap;}
+.cotacoes-titulo{font-size:12.5px;font-weight:600;color:var(--muted);}
+.cotacoes-chips{display:flex;gap:6px;flex-wrap:wrap;flex:1;}
+.cotacao-chip{
+  display:inline-flex;align-items:baseline;gap:5px;padding:3px 9px;border-radius:6px;
+  background:#F5F5F5;border:1px solid var(--border);font-size:11px;color:var(--muted);
+}
+.cotacao-chip b{font-size:12px;color:var(--text);font-variant-numeric:tabular-nums;}
+.cotacao-chip.vazia b{color:var(--muted);font-weight:400;}
 
 /* ============ RESPONSIVE ============ */
 .hamburger{display:none;background:none;border:none;font-size:20px;cursor:pointer;color:var(--text);}
@@ -291,6 +370,8 @@ table.data-table tbody tr.row-clickable{cursor:pointer;}
 @media (max-width:560px){
   .kpi-card .kpi-value{font-size:21px;}
   .topbar .actions .btn span.lbl{display:none;}
+  .ano-picker{font-size:0;gap:0;}
+  .ano-picker select{font-size:13px;}
 }
 
 /* ============ MISC ============ */
@@ -302,3 +383,40 @@ table.data-table tbody tr.row-clickable{cursor:pointer;}
   border:none;background:transparent;padding:6px 11px;border-radius:6px;font-size:12px;cursor:pointer;color:var(--muted);
 }
 .pill-toggle button.active{background:#fff;color:var(--text);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08);}
+
+/* ============ HOME (V1.8.0) — apresentação com fundo da empresa ============ */
+#page-home.active{display:flex;padding:0;}
+.home-page{
+  flex:1;position:relative;display:flex;align-items:center;justify-content:center;text-align:center;
+  min-height:calc(100vh - 84px);padding:40px 28px 60px;overflow:hidden;
+}
+/* Cor de reserva: no snapshot (HTML do dia, sem a pasta assets/) a foto não carrega. */
+.home-page-bg{position:absolute;inset:0;background:#3b3f46 url('home-inventus.jpg') center/cover no-repeat;}
+.saving-gestao{margin-top:22px;}
+.home-page-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.5) 0%,rgba(0,0,0,.32) 45%,rgba(0,0,0,.68) 100%);}
+.home-page-content{position:relative;z-index:2;width:100%;max-width:720px;}
+.home-title{
+  font-size:clamp(40px,7vw,72px);font-weight:700;line-height:1.03;letter-spacing:-.01em;
+  color:#fff;margin:0 0 10px;text-shadow:0 2px 18px rgba(0,0,0,.35);
+}
+.home-subtitle{
+  font-size:clamp(13.5px,2.2vw,17px);color:rgba(255,255,255,.92);margin:0 auto 36px;max-width:56ch;
+  text-shadow:0 1px 6px rgba(0,0,0,.4);
+}
+.home-navbtns{display:flex;flex-direction:column;gap:13px;max-width:500px;margin:0 auto;}
+.btn-home-nav{
+  display:flex;align-items:center;justify-content:center;gap:12px;
+  width:100%;padding:15px 22px;font-size:16px;font-weight:600;color:#fff;letter-spacing:.2px;
+  background:var(--primary);border:1.5px solid var(--primary-dark);border-radius:12px;cursor:pointer;
+  box-shadow:0 8px 22px rgba(245,130,32,.35);
+  transition:background .15s,border-color .15s,transform .1s;
+}
+.btn-home-nav:hover{background:var(--primary-dark);border-color:var(--primary-dark);transform:translateY(-2px);box-shadow:0 10px 28px rgba(245,130,32,.45);}
+.btn-home-nav .arrow{font-size:15px;transition:transform .15s;}
+.btn-home-nav:hover .arrow{transform:translateX(4px);}
+@media (max-width:680px){.home-page{min-height:calc(100vh - 96px);padding:32px 18px 56px;}.btn-home-nav{padding:14px 18px;font-size:15px;}}
+
+/* ============ EXECUTIVA — BIDs realizados + saving mensal (V1.8.1) ============ */
+.bids-table{font-size:12px;}
+.bids-table th{font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;}
+.bids-empty{font-size:12.5px;color:var(--muted);font-style:italic;}

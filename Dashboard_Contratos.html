@@ -13,21 +13,24 @@
   <aside class="sidebar" id="sidebar">
     <div class="brand">
       <div class="logo-dot"></div>
-      <div><span>Contratos</span><small>Gestão de Contratos</small></div>
+      <div class="brand-text"><span>Contratos</span><small>Gestão de Contratos</small></div>
+      <button class="collapse-toggle" id="btn-collapse" title="Recolher menu">«</button>
     </div>
     <ul class="nav">
-      <li><button data-page="executiva" class="active"><span class="ic">📊</span> Executiva</button></li>
-      <li><button data-page="sla"><span class="ic">⏱️</span> SLA Operacional</button></li>
-      <li><button data-page="financeira"><span class="ic">💰</span> Financeira</button></li>
-      <li><button data-page="gestao"><span class="ic">📁</span> Gestão de Contratos</button></li>
+      <li><button data-page="home" class="active" title="Home"><span class="lbl">Home</span></button></li>
+      <li><button data-page="executiva" title="Executiva"><span class="lbl">Executiva</span></button></li>
+      <li><button data-page="sla" title="Status do contrato"><span class="lbl">Status do contrato</span></button></li>
+      <li><button data-page="financeira" title="Financeiro"><span class="lbl">Financeiro</span></button></li>
+      <li><button data-page="gestao" title="Gestão de Contratos"><span class="lbl">Gestão de Contratos</span></button></li>
     </ul>
     <div class="sidebar-actions">
       <div class="file-name">
         <span class="status-dot off" id="file-status-dot"></span>
         <span id="file-status-name">Nenhuma planilha aberta</span>
       </div>
-      <button class="btn live-only" id="btn-open">📂 Abrir planilha</button>
-      <button class="btn btn-primary live-only" id="btn-save" disabled>💾 Salvar</button>
+      <button class="btn live-only" id="btn-open" title="Abrir planilha"><span class="lbl">Abrir planilha</span></button>
+      <button class="btn btn-primary live-only" id="btn-save" title="Salvar" disabled><span class="lbl">Salvar</span></button>
+      <button class="btn live-only" id="btn-export" title="Exportar HTML do dia"><span class="lbl">Exportar HTML do dia</span></button>
     </div>
   </aside>
 
@@ -41,16 +44,21 @@
         </div>
       </div>
       <div class="actions">
-        <span class="warn-banner live-only" style="margin:0;">⚠ Feche o Power BI antes de editar a planilha</span>
+        <span class="warn-banner live-only" style="margin:0;">Feche o Power BI antes de editar a planilha</span>
+        <label class="ano-picker" for="ano-ativo">Exercício <select id="ano-ativo" class="ano-select"></select></label>
+        <button class="btn btn-sm" data-action="fullscreen" title="Tela cheia (Esc para sair)"><span class="lbl">Tela cheia</span></button>
       </div>
     </div>
+
+    <button class="fullscreen-exit" data-action="fullscreen" title="Sair da tela cheia (Esc)">Sair da tela cheia</button>
 
     <div id="unsupported-banner" class="warn-banner danger hidden" style="margin:16px 28px 0;">
       Este navegador não é compatível com a edição direta da planilha (File System Access API). Use Microsoft Edge ou Google Chrome para abrir, cadastrar e salvar contratos.
     </div>
     <div id="snapshot-info" class="warn-banner hidden" style="margin:16px 28px 0;"></div>
 
-    <section class="page active" id="page-executiva"></section>
+    <section class="page active" id="page-home"></section>
+    <section class="page" id="page-executiva"></section>
     <section class="page" id="page-sla"></section>
     <section class="page" id="page-financeira"></section>
     <section class="page" id="page-gestao"></section>
@@ -62,7 +70,8 @@
 
 <script src="assets/chart.umd.min.js"></script>
 <script src="assets/chartjs-plugin-datalabels.min.js"></script>
-<script src="assets/xlsx.full.min.js"></script>
+<script src="assets/exceljs.min.js"></script>
+<script src="assets/jszip.min.js"></script>
 <script src="assets/snapshot-template.js"></script>
 <script src="assets/regras.js"></script>
 <script src="assets/excel.js"></script>

@@ -1,7 +1,7 @@
 /* ============================================================
    regras.js — Lógica de negócio do Dashboard de Gestão de Contratos
    Porta para JS as mesmas regras validadas no modelo Power BI
-   (ver 04_Dashboard Gestão de Contratos/PowerBI/Claude/00_Especificacao_e_Modelo/).
+   (ver 04_Dashboard Gestão de Contratos/PowerBI/especificacao/00_Especificacao_e_Modelo/).
 
    Não depende de DOM — pode ser testado isoladamente e é reaproveitado
    sem alteração dentro do snapshot estático (modo visualização).
@@ -9,25 +9,222 @@
 (function (global) {
   'use strict';
 
-  var STATUS_ORDER = ['No Prazo', 'A Vencer', 'Vencido', 'Em Análise'];
+  var STATUS_ORDER = ['No Prazo', 'A Vencer', 'Vencido', 'Em Análise', 'Distrato/Expirado'];
 
   var STATUS_COLORS = {
     'No Prazo': '#16A34A',
     'A Vencer': '#FF851B',
     'Vencido': '#DC2626',
-    'Em Análise': '#7a7f87'
+    'Em Análise': '#7a7f87',
+    'Distrato/Expirado': '#6D28D9'
   };
 
   var STATUS_CSS_CLASS = {
     'No Prazo': 'badge-no-prazo',
     'A Vencer': 'badge-a-vencer',
     'Vencido': 'badge-vencido',
-    'Em Análise': 'badge-em-analise'
+    'Em Análise': 'badge-em-analise',
+    'Distrato/Expirado': 'badge-distrato'
   };
 
-  var VENCIDO_CRITICO_LIMIAR = 100000;
   var VIGENCIA_LONGA_ANOS = 3;
   var JANELA_A_VENCER_DIAS = 30;
+
+  // Cada mês ocupa DUAS colunas na planilha: "JAN R$" (dispêndio do mês) e
+  // "JAN $" (o mesmo valor convertido pela cotação daquele mês, que fica na
+  // linha 2 da própria coluna "$" — ver excel.js).
+  // `nomeLongo` é o que vai no rótulo da cotação na linha 1 da planilha
+  // ("cotaçao do dolar janeiro 2026") — a grafia que a Hendrya já usa lá.
+  var MESES = [
+    { key: 'jan', label: 'Jan', nomeLongo: 'janeiro', fieldBrl: 'mesJanBrl', fieldUsd: 'mesJanUsd', headerBrl: 'jan r$', headerUsd: 'jan $', headerLegado: 'jan' },
+    { key: 'fev', label: 'Fev', nomeLongo: 'fevereiro', fieldBrl: 'mesFevBrl', fieldUsd: 'mesFevUsd', headerBrl: 'fev r$', headerUsd: 'fev $', headerLegado: 'fev' },
+    { key: 'mar', label: 'Mar', nomeLongo: 'março', fieldBrl: 'mesMarBrl', fieldUsd: 'mesMarUsd', headerBrl: 'mar r$', headerUsd: 'mar $', headerLegado: 'mar' },
+    { key: 'abr', label: 'Abr', nomeLongo: 'abril', fieldBrl: 'mesAbrBrl', fieldUsd: 'mesAbrUsd', headerBrl: 'abr r$', headerUsd: 'abr $', headerLegado: 'abr' },
+    { key: 'mai', label: 'Mai', nomeLongo: 'maio', fieldBrl: 'mesMaiBrl', fieldUsd: 'mesMaiUsd', headerBrl: 'mai r$', headerUsd: 'mai $', headerLegado: 'mai' },
+    { key: 'jun', label: 'Jun', nomeLongo: 'junho', fieldBrl: 'mesJunBrl', fieldUsd: 'mesJunUsd', headerBrl: 'jun r$', headerUsd: 'jun $', headerLegado: 'jun' },
+    { key: 'jul', label: 'Jul', nomeLongo: 'julho', fieldBrl: 'mesJulBrl', fieldUsd: 'mesJulUsd', headerBrl: 'jul r$', headerUsd: 'jul $', headerLegado: 'jul' },
+    { key: 'ago', label: 'Ago', nomeLongo: 'agosto', fieldBrl: 'mesAgoBrl', fieldUsd: 'mesAgoUsd', headerBrl: 'ago r$', headerUsd: 'ago $', headerLegado: 'ago' },
+    { key: 'set', label: 'Set', nomeLongo: 'setembro', fieldBrl: 'mesSetBrl', fieldUsd: 'mesSetUsd', headerBrl: 'set r$', headerUsd: 'set $', headerLegado: 'set' },
+    { key: 'out', label: 'Out', nomeLongo: 'outubro', fieldBrl: 'mesOutBrl', fieldUsd: 'mesOutUsd', headerBrl: 'out r$', headerUsd: 'out $', headerLegado: 'out' },
+    { key: 'nov', label: 'Nov', nomeLongo: 'novembro', fieldBrl: 'mesNovBrl', fieldUsd: 'mesNovUsd', headerBrl: 'nov r$', headerUsd: 'nov $', headerLegado: 'nov' },
+    { key: 'dez', label: 'Dez', nomeLongo: 'dezembro', fieldBrl: 'mesDezBrl', fieldUsd: 'mesDezUsd', headerBrl: 'dez r$', headerUsd: 'dez $', headerLegado: 'dez' }
+  ];
+  var MESES_FIELDS_BRL = MESES.map(function (m) { return m.fieldBrl; });
+  var MESES_FIELDS_USD = MESES.map(function (m) { return m.fieldUsd; });
+
+  var MESES_BY_KEY = {};
+  MESES.forEach(function (m) { MESES_BY_KEY[m.key] = m; });
+
+  // Anos com colunas mensais na planilha. A ordem é só o padrão usado quando a
+  // planilha ainda não foi lida; quem manda são os anos detectados no cabeçalho
+  // em excel.js (vice-versa: a Hendrya pode acrescentar um ano no Excel).
+  var ANOS_MENSAIS = ['2026', '2025'];
+
+  // Exercício corrente (o ano em que estamos). É o padrão do seletor de ano:
+  // se a planilha ainda não tiver o bloco desse ano, ele é criado no seletor
+  // como "2027 — em preparação" e o mês corrente aparece zerado.
+  function anoAtual() { return String(new Date().getFullYear()); }
+
+  // Cada ano tem seu bloco de 24 colunas (12 R$ + 12 $) na planilha. Os campos
+  // de 2026 mantêm os nomes históricos (mesJanBrl/mesJanUsd) para compatibilidade
+  // com snapshots antigos; anos novos recebem sufixo: mesJanBrl2025, mesJanBrl2024.
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  function fieldBrlAno(ano, mesKey) {
+    return ano === '2026' ? MESES_BY_KEY[mesKey].fieldBrl : 'mes' + cap(mesKey) + 'Brl' + ano;
+  }
+
+  function fieldUsdAno(ano, mesKey) {
+    return ano === '2026' ? MESES_BY_KEY[mesKey].fieldUsd : 'mes' + cap(mesKey) + 'Usd' + ano;
+  }
+
+  function mesFieldsAno(ano) {
+    var brl = [], usd = [];
+    MESES.forEach(function (m) {
+      brl.push(fieldBrlAno(ano, m.key));
+      usd.push(fieldUsdAno(ano, m.key));
+    });
+    return { brl: brl, usd: usd };
+  }
+
+  // Cada ano fecha o seu bloco com o par de totais "Total Faturado <ano> R$" e
+  // "Total Faturado <ano> $" — a soma dos 12 meses daquele ano. Os nomes de
+  // campo saem daqui para excel.js e app.js não montarem a string por conta.
+  function fieldTotalAno(ano) { return 'totalFaturado' + ano; }
+  function fieldTotalUsdAno(ano) { return 'totalFaturadoUsd' + ano; }
+
+  // Lê a cotação do mês ignorando a forma do objeto cotacoes: suporta o shape
+  // novo {ano: {mes: taxa}} e o legado chato {mes: taxa} (pré-multi-ano).
+  function cotaMes(cotacoes, ano, mesKey) {
+    if (!cotacoes) return null;
+    var porAno = cotacoes[ano];
+    if (porAno && typeof porAno === 'object') return porAno[mesKey] != null ? porAno[mesKey] : null;
+    return cotacoes[mesKey] != null ? cotacoes[mesKey] : null;
+  }
+
+  // Soma só os meses preenchidos (sem prorata); null se nenhum mês tiver valor.
+  // `ano` opcional (padrão '2026'); para 2026 usa os campos legados (mesJanBrl...).
+  function somaMesesBRL(contrato, ano) {
+    ano = ano || '2026';
+    var fields = mesFieldsAno(ano).brl;
+    var soma = 0, algum = false;
+    fields.forEach(function (f) {
+      if (contrato[f] != null) { soma += contrato[f]; algum = true; }
+    });
+    return algum ? soma : null;
+  }
+
+  // Valor do mês em dólar = valor do mês em R$ ÷ cotação DAQUELE mês.
+  // Assinatura atual: mesUSD(contrato, mes, ano, cotacoes). Aceita também a
+  // forma legada (contrato, mes, cotacoes) tratando o 3º argumento como cotacoes.
+  function mesUSD(contrato, mes, ano, cotacoes) {
+    if (typeof ano === 'object') { cotacoes = ano; ano = '2026'; }
+    return convertToUSD(contrato[fieldBrlAno(ano, mes.key)], cotaMes(cotacoes, ano, mes.key));
+  }
+
+  function somaMesesUSD(contrato, ano, cotacoes) {
+    if (typeof ano === 'object') { cotacoes = ano; ano = '2026'; }
+    var soma = 0, algum = false;
+    MESES.forEach(function (m) {
+      var v = mesUSD(contrato, m, ano, cotacoes);
+      if (v != null) { soma += v; algum = true; }
+    });
+    return algum ? soma : null;
+  }
+
+  // "Total Faturado <ano>" — puramente o somatório dos valores mensais daquele
+  // ano (o que a planilha calcula como fórmula). Null se nenhum mês lançado.
+  function totalFaturado(contrato, ano) {
+    return somaMesesBRL(contrato, ano);
+  }
+
+  // "Despesa" do ano para os KPIs: o total faturado quando há meses; senão cai
+  // para o valor declarado (Valor Anual do Contrato, só existe para 2026) e,
+  // por fim, para o valor que a planilha tiver em Total Faturado <ano>.
+  // V1.7.0: sem cair para o Valor Anual — dispêndio do ano é o que foi lançado nos
+  // meses, como na planilha do Power BI ("Dispêndio do Ano (soma dos meses)").
+  function despesaAno(contrato, ano) {
+    var t = somaMesesBRL(contrato, ano);
+    if (t != null) return t;
+    var col = contrato[fieldTotalAno(ano)];
+    if (col != null) return col;
+    return null;
+  }
+
+  // "Total Faturado <ano>" em R$ e em US$: o app recalcula a partir dos meses; o
+  // valor lido da planilha só entra quando o contrato ainda não tem mês lançado
+  // (fórmula recém-gravada não traz valor em cache).
+  function totalAnualReais(contrato, ano) {
+    ano = ano || '2026';
+    var soma = somaMesesBRL(contrato, ano);
+    if (soma != null) return soma;
+    var col = contrato[fieldTotalAno(ano)];
+    return col != null ? col : null;
+  }
+
+  function totalAnualDolares(contrato, ano, cotacoes) {
+    if (typeof ano === 'object') { cotacoes = ano; ano = '2026'; }
+    var soma = somaMesesUSD(contrato, ano, cotacoes);
+    if (soma != null) return soma;
+    var col = contrato[fieldTotalUsdAno(ano)];
+    return col != null ? col : null;
+  }
+
+  // Valor negociado do contrato ("Despesa Total Anual"), a mesma regra da coluna
+  // "Valor negociado do ano" da planilha do Power BI (V1.7.0, decisão do Luis em
+  // 06/10/2026: os dois painéis mostram o mesmo número): Valor Anual; vazio ou
+  // zero -> Valor Mensal x 12; nenhum dos dois -> sem valor (null). `ano` ficou
+  // na assinatura só por compatibilidade.
+  function valorTotalContrato(contrato, ano) {
+    if (contrato.valorAnual2026 > 0) return contrato.valorAnual2026;
+    if (contrato.valorMensal2026 > 0) return contrato.valorMensal2026 * 12;
+    return null;
+  }
+
+  // ---------------------------------------------------------------
+  // Saving (aba Saving da base do Power BI, V1.9.0) — a mesma régua da planilha:
+  // saving em R$ por mês (campos savJan..savDez) + total sem detalhe mensal
+  // (savSemMes). US$ do mês = R$ do mês ÷ cotação daquele mês (sem cotação fica
+  // de fora, como no dispêndio); US$ do "sem mês" = ÷ MÉDIA das cotações
+  // preenchidas do ano. "Desde" = 1º mês com saving.
+  // ---------------------------------------------------------------
+  function campoSaving(mesKey) { return 'sav' + cap(mesKey); }
+
+  function savingMes(item, mesKey) {
+    var v = item[campoSaving(mesKey)];
+    return (v == null || v === '' || isNaN(Number(v))) ? null : Number(v);
+  }
+
+  function savingBRL(item) {
+    var t = 0;
+    MESES.forEach(function (m) { var v = savingMes(item, m.key); if (v != null) t += v; });
+    return t + (Number(item.savSemMes) || 0);
+  }
+
+  function savingUSD(item, ano, cotacoes) {
+    var porAno = (cotacoes || {})[ano] || {};
+    var t = 0;
+    MESES.forEach(function (m) {
+      var v = savingMes(item, m.key);
+      var c = porAno[m.key];
+      if (v != null && c) t += v / c;
+    });
+    var sem = Number(item.savSemMes) || 0;
+    var cots = MESES.map(function (m) { return porAno[m.key]; }).filter(function (c) { return c != null && !isNaN(c); });
+    if (sem && cots.length) {
+      var media = cots.reduce(function (a, b) { return a + b; }, 0) / cots.length;
+      if (media) t += sem / media;
+    }
+    return t;
+  }
+
+  function savingDesde(item) {
+    for (var i = 0; i < MESES.length; i++) {
+      var v = savingMes(item, MESES[i].key);
+      if (v != null && v > 0) return MESES[i].label;
+    }
+    return '';
+  }
 
   // ---------------------------------------------------------------
   // Normalização de texto
@@ -125,7 +322,16 @@
     if (contrato.statusManual && STATUS_ORDER.indexOf(contrato.statusManual) > -1) {
       return contrato.statusManual;
     }
-    return statusCalculado(contrato.dataFim, hoje);
+    return statusPorComentario(contrato.comentarios) || statusCalculado(contrato.dataFim, hoje);
+  }
+
+  // Marcador no Comentário manda no status (= fórmula Status da planilha, montar_base_pbi.py
+  // MARCADORES_STATUS; o SEARCH do Excel também não liga para maiúscula/minúscula).
+  function statusPorComentario(comentarios) {
+    var s = String(comentarios || '').toUpperCase();
+    if (s.indexOf('STATUS: DISTRATO') > -1 || s.indexOf('STATUS: EXPIRADO') > -1) return 'Distrato/Expirado';
+    if (s.indexOf('STATUS: VENCIDO') > -1) return 'Vencido';
+    return null;
   }
 
   // ---------------------------------------------------------------
@@ -158,12 +364,18 @@
   // ---------------------------------------------------------------
   // KPIs — as mesmas 14 medidas validadas no Power BI (_Medidas.tmdl)
   // ---------------------------------------------------------------
-  function computeKPIs(contratos, hoje) {
+  // `ano` decide de qual exercício sai a despesa faturada (dólar, vencidos).
+  // A "Despesa Total Anual" NÃO depende do ano: é a soma do valor total de cada
+  // contrato (ver `valorTotalContrato`). As medidas de contagem/status também não.
+  function computeKPIs(contratos, hoje, cotacoes, ano) {
     hoje = hoje || new Date();
+    ano = ano || ANOS_MENSAIS[0];
     var total = contratos.length;
-    var noPrazo = 0, aVencer = 0, vencido = 0, emAnalise = 0;
-    var despesaTotal = 0, semValor = 0, despesaVencidos = 0, vencidosCriticos = 0;
+    var noPrazo = 0, aVencer = 0, vencido = 0, emAnalise = 0, distrato = 0;
+    var despesaTotal = 0, semValor = 0, despesaVencidos = 0;
+    var despesaTotalUSD = 0, despesaDoAno = 0;
     var somaPrazoPagamento = 0, nPrazoPagamento = 0;
+    var prazoNegociado = 0;
     var vigenciaLonga = 0;
     var limiteVigenciaLonga = addYears(startOfDay(hoje), VIGENCIA_LONGA_ANOS);
 
@@ -173,21 +385,37 @@
       if (st === 'No Prazo') noPrazo++;
       else if (st === 'A Vencer') aVencer++;
       else if (st === 'Vencido') vencido++;
+      else if (st === 'Distrato/Expirado') distrato++;
       else emAnalise++;
 
-      if (c.valorAnual2026 != null) {
-        despesaTotal += c.valorAnual2026;
+      // "Despesa Total Anual" = valor negociado dos contratos (Valor Anual, ou
+      // Mensal x 12), não a soma do que foi faturado no exercício — pedido da
+      // Hendrya em 28/09/2026, regra da planilha do Power BI desde a V1.7.0.
+      var valorContrato = valorTotalContrato(c, ano);
+      var despesa = despesaAno(c, ano);
+      if (valorContrato != null) {
+        despesaTotal += valorContrato;
       } else {
         semValor++;
       }
+      if (despesa != null) despesaDoAno += despesa;
 
-      if (st === 'Vencido' && c.valorAnual2026 != null) despesaVencidos += c.valorAnual2026;
-      if (st === 'Vencido' && c.valorAnual2026 != null && c.valorAnual2026 > VENCIDO_CRITICO_LIMIAR) vencidosCriticos++;
+      var anualUSD = totalAnualDolares(c, ano, cotacoes);
+      if (anualUSD != null) despesaTotalUSD += anualUSD;
+
+      if (st === 'Vencido' && despesa != null) {
+        despesaVencidos += despesa;
+      }
 
       if (c.prazoPagamentoDias != null) {
         somaPrazoPagamento += c.prazoPagamentoDias;
         nPrazoPagamento++;
       }
+
+      // "Prazo de Pagamento Negociado": qualquer texto preenchido na coluna
+      // Prazo Negociado (não é sobre prazo ter sido ou não alterado — é sobre o
+      // fornecedor já ter passado por negociação de condição de pagamento).
+      if (String(c.prazoNegociadoRaw || '').trim() !== '') prazoNegociado++;
 
       if (c.dataFim && startOfDay(c.dataFim) > limiteVigenciaLonga) vigenciaLonga++;
     }
@@ -200,15 +428,18 @@
       contratosAVencer: aVencer,
       contratosVencidos: vencido,
       contratosEmAnalise: emAnalise,
+      contratosDistrato: distrato,
       pctContratosVencidos: total ? vencido / total : 0,
       pctContratosAVencer: total ? aVencer / total : 0,
       despesaTotalAnual: despesaTotal,
+      despesaTotalAnualUSD: despesaTotalUSD,
+      despesaTotalAno: despesaDoAno,
       contratosSemValorInformado: semValor,
       despesaMediaPorContrato: comValor ? despesaTotal / comValor : 0,
       despesaContratosVencidos: despesaVencidos,
-      contratosVencidosCriticos: vencidosCriticos,
       prazoMedioPagamentoDias: nPrazoPagamento ? somaPrazoPagamento / nPrazoPagamento : null,
-      contratosVigenciaLonga: vigenciaLonga
+      contratosVigenciaLonga: vigenciaLonga,
+      contratosPrazoPagamentoNegociado: prazoNegociado
     };
   }
 
@@ -223,6 +454,23 @@
       if (abs >= 1e3) return 'R$ ' + (v / 1e3).toLocaleString('pt-BR', { maximumFractionDigits: 0 }) + 'K';
     }
     return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }
+
+  // Conversão manual via taxa de câmbio informada pelo usuário (não é cotação
+  // ao vivo — ver decisão registrada: alternativa (a), campo preenchido periodicamente).
+  function formatUSD(v, compact) {
+    if (v == null || isNaN(v)) return '—';
+    if (compact) {
+      var abs = Math.abs(v);
+      if (abs >= 1e6) return 'US$ ' + (v / 1e6).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + 'M';
+      if (abs >= 1e3) return 'US$ ' + (v / 1e3).toLocaleString('en-US', { maximumFractionDigits: 0 }) + 'K';
+    }
+    return v.toLocaleString('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  }
+
+  function convertToUSD(valorBRL, taxaCambio) {
+    if (valorBRL == null || isNaN(valorBRL) || taxaCambio == null || !taxaCambio) return null;
+    return valorBRL / taxaCambio;
   }
 
   function formatNumberBR(v, decimals) {
@@ -322,9 +570,32 @@
     normSpace: normSpace,
     STATUS_COLORS: STATUS_COLORS,
     STATUS_CSS_CLASS: STATUS_CSS_CLASS,
-    VENCIDO_CRITICO_LIMIAR: VENCIDO_CRITICO_LIMIAR,
     VIGENCIA_LONGA_ANOS: VIGENCIA_LONGA_ANOS,
     JANELA_A_VENCER_DIAS: JANELA_A_VENCER_DIAS,
+    MESES: MESES,
+    MESES_FIELDS_BRL: MESES_FIELDS_BRL,
+    MESES_FIELDS_USD: MESES_FIELDS_USD,
+    ANOS_MENSAIS: ANOS_MENSAIS,
+    anoAtual: anoAtual,
+    fieldBrlAno: fieldBrlAno,
+    fieldUsdAno: fieldUsdAno,
+    fieldTotalAno: fieldTotalAno,
+    fieldTotalUsdAno: fieldTotalUsdAno,
+    mesFieldsAno: mesFieldsAno,
+    cotaMes: cotaMes,
+    somaMesesBRL: somaMesesBRL,
+    somaMesesUSD: somaMesesUSD,
+    mesUSD: mesUSD,
+    totalFaturado: totalFaturado,
+    despesaAno: despesaAno,
+    valorTotalContrato: valorTotalContrato,
+    campoSaving: campoSaving,
+    savingMes: savingMes,
+    savingBRL: savingBRL,
+    savingUSD: savingUSD,
+    savingDesde: savingDesde,
+    totalAnualReais: totalAnualReais,
+    totalAnualDolares: totalAnualDolares,
 
     normalizeRazaoSocial: normalizeRazaoSocial,
     normalizeDepartamento: normalizeDepartamento,
@@ -337,11 +608,14 @@
     addYears: addYears,
 
     statusCalculado: statusCalculado,
+    statusPorComentario: statusPorComentario,
     statusFinal: statusFinal,
     qualityFlags: qualityFlags,
     computeKPIs: computeKPIs,
 
     formatBRL: formatBRL,
+    formatUSD: formatUSD,
+    convertToUSD: convertToUSD,
     formatNumberBR: formatNumberBR,
     formatPercent: formatPercent,
     formatDateBR: formatDateBR,

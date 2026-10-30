@@ -119,7 +119,7 @@ Todas as bibliotecas de terceiros são MIT-licensed e ficam vendorizadas em
 ## Estrutura do projeto
 
 ```
-Código/
+html/
 ├── Dashboard_Contratos.html      ← abrir este arquivo para usar o app (navegador)
 ├── dados/exemplo_simulado.xlsx   ← planilha de exemplo (dados fictícios); copie para a raiz como
 │                                    "MATRIZ DE CONTRATOS 2026.xlsx" para usar o app com dados
